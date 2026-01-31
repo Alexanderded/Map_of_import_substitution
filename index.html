@@ -5,29 +5,53 @@
 <title>Карта импортозамещения нефтегазового оборудования</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 
 <style>
-  body { margin:0; font-family:Arial,sans-serif; }
+  body { margin:0; font-family: 'Segoe UI', Tahoma, sans-serif; background:#f5f5f5; }
   header {
     background:#1f4fa3;
     color:white;
-    padding:10px;
+    padding:12px 16px;
     display:flex;
+    flex-wrap: wrap;
     gap:10px;
     align-items:center;
+    justify-content: space-between;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   }
-  #map { height: calc(100vh - 60px); }
+  header div, header button { margin: 2px; }
 
-  select {
-    padding:5px;
-    font-size:14px;
+  #map { height: calc(100vh - 64px); width: 100%; transition: background 0.5s; }
+
+  select, button {
+    padding:6px 10px;
+    font-size:15px;
+    border-radius:4px;
+    border:none;
+    cursor:pointer;
+    transition: 0.3s;
   }
+
+  select { min-width: 150px; }
+  select:hover, button:hover { opacity: 0.85; }
+
+  button { background:#ffb74d; color:#000; font-weight:bold; }
 
   .popup-img {
     width:100%;
     max-width:220px;
     margin-bottom:6px;
-    border-radius:4px;
+    border-radius:6px;
+    transition: transform 0.3s;
+  }
+  .popup-img:hover { transform: scale(1.05); }
+
+  @media (max-width: 600px) {
+    header { flex-direction: column; align-items: stretch; }
+    select, button { width: 100%; }
+    #map { height: calc(100vh - 180px); }
   }
 </style>
 </head>
@@ -35,26 +59,60 @@
 <body>
 
 <header>
-  Карта импортозамещения
-  <select id="typeFilter">
-    <option value="all">Все типы</option>
-  </select>
-  <select id="regionFilter">
-    <option value="all">Все регионы</option>
-  </select>
+  <div>Карта импортозамещения</div>
+  <div>
+    <select id="typeFilter"><option value="all">Все типы</option></select>
+    <select id="regionFilter"><option value="all">Все регионы</option></select>
+  </div>
+  <div>
+    <button id="toggleTheme">🌙 Ночная тема</button>
+  </div>
 </header>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 const map = L.map('map').setView([60, 90], 4);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+// 🔹 Слои карты
+const dayLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   attribution:'© OpenStreetMap'
 }).addTo(map);
 
-// 🔹 ДАННЫЕ ЗАВОДОВ
+const nightLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_dark/{z}/{x}/{y}{r}.png',{
+  attribution:'© Stadia Maps, © OpenStreetMap'
+});
+
+let nightMode = false;
+
+// 🔹 Функция переключения темы с анимацией
+function toggleTheme(forceNight = null){
+  if(forceNight !== null) nightMode = forceNight;
+  else nightMode = !nightMode;
+
+  if(nightMode){
+    map.removeLayer(dayLayer);
+    nightLayer.addTo(map);
+    document.getElementById("toggleTheme").textContent = "☀️ Дневная тема";
+    document.body.style.background="#222";
+  } else {
+    map.removeLayer(nightLayer);
+    dayLayer.addTo(map);
+    document.getElementById("toggleTheme").textContent = "🌙 Ночная тема";
+    document.body.style.background="#f5f5f5";
+  }
+}
+
+// Автоночь по времени
+const hour = new Date().getHours();
+if(hour >= 20 || hour < 6) toggleTheme(true);
+
+// кнопка для ручного переключения
+document.getElementById("toggleTheme").onclick = () => toggleTheme();
+
+// 🔹 ДАННЫЕ ЗАВОДОВ (сокращённо для примера)
 const factories = [
    {
     name: "ООО «Борец» Продакшн Компани",
@@ -192,43 +250,28 @@ const factories = [
     desc: "Производит буровые установки и инструменты для нефтегазовой добычи.",
   }
 ];
-let markers = L.layerGroup().addTo(map);
+
+
+// 🔹 Кластеризация маркеров
+let markers = L.markerClusterGroup();
+map.addLayer(markers);
 
 // 🔹 Заполнение фильтров
 const typeFilter = document.getElementById("typeFilter");
 const regionFilter = document.getElementById("regionFilter");
-
-[...new Set(factories.map(f => f.type))].forEach(t =>
-  typeFilter.add(new Option(t, t))
-);
-
-[...new Set(factories.map(f => f.region))].forEach(r =>
-  regionFilter.add(new Option(r, r))
-);
+[...new Set(factories.map(f => f.type))].forEach(t=>typeFilter.add(new Option(t,t)));
+[...new Set(factories.map(f => f.region))].forEach(r=>regionFilter.add(new Option(r,r)));
 
 // 🔹 Отрисовка маркеров
 function render() {
   markers.clearLayers();
-
-  factories.forEach(f => {
-    if (
-      (typeFilter.value !== "all" && f.type !== typeFilter.value) ||
-      (regionFilter.value !== "all" && f.region !== regionFilter.value)
-    ) return;
-
+  factories.forEach(f=>{
+    if((typeFilter.value!=="all" && f.type!==typeFilter.value) ||
+       (regionFilter.value!=="all" && f.region!==regionFilter.value)) return;
     const img = f.image || "images/default.png";
-
-    const popup = `
-      <img src="${img}" class="popup-img">
-      <b>${f.name}</b><br>
-      ${f.city}<br>
-      <i>${f.type}</i><br>
-      ${f.desc}
-    `;
-
-    L.marker(f.coords)
-      .addTo(markers)
-      .bindPopup(popup);
+    const popup = <img src="${img}" class="popup-img"><b>${f.name}</b><br>${f.city}<br><i>${f.type}</i><br>${f.desc};
+    const marker = L.marker(f.coords).bindPopup(popup);
+    markers.addLayer(marker);
   });
 }
 
