@@ -57,10 +57,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // Инициализация карты
-const map = L.map('map').setView([55.75, 37.62], 4);
+const map = L.map('map').setView([60, 90], 4);
+map.attributionControl.remove();
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  attribution:'© OpenStreetMap'
+  attribution:''
 }).addTo(map);
 
 // Список заводов с сайтами (если есть)
