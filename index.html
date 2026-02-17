@@ -15,19 +15,29 @@
     display:flex;
     gap:10px;
     align-items:center;
+    flex-wrap:wrap;
   }
-  #map { height: calc(100vh - 60px); }
+  #map { height: calc(100vh - 80px); }
 
-  select {
-    padding:5px;
+  select, input {
+    padding:6px;
     font-size:14px;
+  }
+
+  input {
+    width:220px;
   }
 
   .popup-img {
     width:100%;
-    max-width:220px;
+    max-width:200px;
     margin-bottom:6px;
     border-radius:4px;
+  }
+
+  #count {
+    margin-left:auto;
+    font-weight:bold;
   }
 </style>
 </head>
@@ -35,80 +45,85 @@
 <body>
 
 <header>
-  Карта импортозамещения
-  <select id="typeFilter">
-    <option value="all">Все типы</option>
-  </select>
-  <select id="regionFilter">
-    <option value="all">Все регионы</option>
-  </select>
+  <strong>Карта импортозамещения</strong>
+  <input type="text" id="nameSearch" placeholder="Поиск по названию завода">
+  <select id="typeFilter"><option value="all">Все типы</option></select>
+  <select id="regionFilter"><option value="all">Все регионы</option></select>
+  <span id="count"></span>
 </header>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([60, 90], 4);
+// Инициализация карты
+const map = L.map('map').setView([55.75, 37.62], 4);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   attribution:'© OpenStreetMap'
 }).addTo(map);
 
-// данные заводов
+// Список заводов с сайтами (если есть)
 const factories = [
-   {
-    name: "\ООО «Борец» Продакшн Компани",
+  {
+    name: "ООО «Борец» Продакшн Компани",
     city: "Челябинск",
     region: "Челябинская область",
     type: "Насосное и скважинное оборудование",
     coords: [55.1644,61.4368],
     image: "images/borets.png",
-    desc: "Производит газовые стабилизаторы, скважинные насосы и насосное оборудование для нефтегаза.",
+    desc: "Производит газовые стабилизаторы и насосы.",
+    link: ""
   },
   {
-    name: "\ЗиО-Подольский машиностроительный завод АО",
+    name: "ЗиО-Подольский машиностроительный завод АО",
     city: "Подольск",
     region: "Московская область",
     type: "Теплообменники и сосуды",
     coords: [55.4227,37.5557],
     image: "images/ziopodolsk.png",
-    desc: "Изготавливает теплообменники, сосуды высокого давления и колонное оборудование для нефтегаза.",
+    desc: "Изготавливает теплообменники и сосуды высокого давления.",
+    link: ""
   },
   {
-    name: "\Казанский компрессорный инженерный завод АО",
+    name: "Казанский компрессорный инженерный завод АО",
     city: "Казань",
     region: "Республика Татарстан",
     type: "Компрессоры",
     coords: [55.7961,49.1064],
     image: "images/compress.png",
-    desc: "Производит компрессорное оборудование для нефтегазовой отрасли.",
+    desc: "Производит компрессорное оборудование.",
+    link: "https://compressormash.ru/"
   },
   {
-    name: "\АО Криогенная инженерия (Криогенмаш)",
+    name: "АО Криогенная инженерия (Криогенмаш)",
     city: "Томск",
     region: "Томская область",
     type: "Криогенное оборудование",
     coords: [56.4977,84.9744],
     image: "images/cryo.png",
-    desc: "Производит криогенное оборудование, сепараторы и газовое оборудование.",
+    desc: "Производит криогенное оборудование.",
+    link: ""
   },
   {
-    name: "\Ижевский нефтяной завод АО",
+    name: "Ижевский нефтяной завод АО",
     city: "Ижевск",
     region: "Удмуртская республика",
     type: "Буровое оборудование",
     coords: [56.8524,53.2045],
     image: "images/izeмv.png",
-    desc: "Производит буровые установки, автодолбёжные ключи и буровое оборудование.",
+    desc: "Производит буровые установки и буровое оборудование.",
+    link: ""
   },
   {
-    name: "\Завод нефтегазового оборудования Техновек",
+    name: "Завод нефтегазового оборудования Техновек",
     city: "Нефтеюганск",
     region: "Ханты-Мансийский АО",
     type: "Фильтрационное и трубопроводное оборудование",
     coords: [61.0950,72.6051],
     image: "images/Oil and Gas Equipment Plant Technovec.png",
-    desc: "Производит фильтрационное и скважинное оборудование, элементы трубопроводов.",
+    desc: "Производит фильтрационные и трубопроводные системы.",
+    link: ""
   },
   {
     name: "Объединённая металлургическая компания АО",
@@ -117,61 +132,68 @@ const factories = [
     type: "Металлические изделия",
     coords: [55.1644,61.4368],
     image: "images/United Metallurgical Company JSC.png",
-    desc: "Производит металлические изделия и трубные компоненты для нефтегаза.",
+    desc: "Производит металлические изделия и компоненты.",
+    link: ""
   },
   {
-    name: "\ООО «Идель Нефтемаш»",
+    name: "ООО «Идель Нефтемаш»",
     city: "Уфа",
     region: "Республика Башкортостан",
     type: "Буровое оборудование",
     coords: [54.7388,55.9721],
     image: "images/Idel.png",
-    desc: "Производит буровые комплексы, системы ремонта скважин.",
+    desc: "Производит буровые комплексы и системы ремонта.",
+    link: "https://idelneftemash.ru/"
   },
   {
-    name: "\ООО «Нефтекамский машиностроительный завод специального оборудования»",
+    name: "ООО «Нефтекамский машиностроительный завод»",
     city: "Нефтекамск",
     region: "Республика Башкортостан",
     type: "Циркуляционное и буровое оборудование",
     coords: [56.0914,54.2421],
     image: "images/machine.png",
-    desc: "Производит циркуляционные системы, буровое оборудование.",
+    desc: "Производит циркуляционные и буровые системы.",
+    link: ""
   },
   {
-    name: "\АО \"Волгограднефтемаш\"",
+    name: "АО «Волгограднефтемаш»",
     city: "Волгоград",
     region: "Волгоградская область",
     type: "Насосно-компрессорное оборудование",
     coords: [48.7080,44.5133],
     image: "images/volg.png",
-    desc: "Производит насосы, компрессоры и технологическое оборудование.",
+    desc: "Производит насосы и технологическое оборудование.",
+    link: ""
   },
   {
-    name: "\АО \"Димитровградхиммаш\"",
+    name: "АО «Димитровградхиммаш»",
     city: "Димитровград",
     region: "Ульяновская область",
     type: "Колонное оборудование",
     coords: [54.2204,49.6108],
     image: "images/dmitrov.png",
     desc: "Производит колонное и аппаратное оборудование.",
+    link: "https://himmash.ru/"
   },
   {
-    name: "\АО \"ГазЭнергоСервис\"",
+    name: "АО «ГазЭнергоСервис» (HMS Group)",
     city: "Москва",
     region: "Москва",
     type: "КИПиА и принудительное оборудование",
     coords: [55.7558,37.6173],
     image: "images/Gasenerg.png",
-    desc: "Производит приборы контроля и автоматизации для нефтегазового оборудования.",
+    desc: "Производит приборы контроля и автоматизации.",
+    link: "https://grouphms.ru/" // HMS Group – крупный производитель насосов и компрессоров :contentReference[oaicite:4]{index=4}
   },
   {
-    name: "\Группа ГМС",
+    name: "Группа ГМС",
     city: "Москва",
     region: "Москва",
     type: "Насосы, компрессоры, нефтегазовые модули",
     coords: [55.7558,37.6173],
     image: "images/GMS.png",
-    desc: "Производит насосы, компрессоры и модульные установки для нефтегаза.", 
+    desc: "Производит насосы и модульные установки.",
+    link: "https://grouphms.ru/" // входит в HMS Group :contentReference[oaicite:5]{index=5}
   },
   {
     name: "Уралхиммаш",
@@ -180,23 +202,39 @@ const factories = [
     type: "Резервуары, теплообменное оборудование",
     coords: [56.8389,60.6057],
     image: "images/uralhim.png",
-    desc: "Производит реакторы, емкости, теплообменное и колонное оборудование для нефтегаза.",
+    desc: "Производит теплообменное и емкостное оборудование.",
+    link: ""
   },
   {
-    name: "\ГЕОМАШ",
+    name: "ГазСёрф (GazSurf)",
     city: "Москва",
     region: "Москва",
-    type: "Буровое оборудование",
-    coords: [55.7558,37.6173],
-    image: "images/Geomash.png",
-    desc: "Производит буровые установки и инструменты для нефтегазовой добычи.",
+    type: "Инжиниринг и оборудование",
+    coords: [55.7800,37.6100],
+    image: "images/gazsurf.png",
+    desc: "Инжиниринг и производство оборудования для нефти и газа.",
+    link: "https://gazsurf.com/"
+  },
+  {
+    name: "Interenergo LLC",
+    city: "Москва",
+    region: "Москва",
+    type: "Газовые системы и компрессоры",
+    coords: [55.7500,37.6200],
+    image: "images/interenergo.png",
+    desc: "Производит газотранспортные и газоочистные системы.",
+    link: "https://gkinterenergo.ru/"
   }
 ];
+
+// Маркеры
 let markers = L.layerGroup().addTo(map);
 
-//фильтры
+// Заполнение фильтров
 const typeFilter = document.getElementById("typeFilter");
 const regionFilter = document.getElementById("regionFilter");
+const nameSearch = document.getElementById("nameSearch");
+const countLabel = document.getElementById("count");
 
 [...new Set(factories.map(f => f.type))].forEach(t =>
   typeFilter.add(new Option(t, t))
@@ -206,17 +244,29 @@ const regionFilter = document.getElementById("regionFilter");
   regionFilter.add(new Option(r, r))
 );
 
-// маркеры
+// Функция рендера
 function render() {
   markers.clearLayers();
+  let count = 0;
+  let lastCoords = null;
+
+  const searchText = nameSearch.value.toLowerCase();
 
   factories.forEach(f => {
     if (
       (typeFilter.value !== "all" && f.type !== typeFilter.value) ||
-      (regionFilter.value !== "all" && f.region !== regionFilter.value)
+      (regionFilter.value !== "all" && f.region !== regionFilter.value) ||
+      (searchText && !f.name.toLowerCase().includes(searchText))
     ) return;
 
+    count++;
+    lastCoords = f.coords;
+
     const img = f.image || "images/default.png";
+
+    const linkHTML = f.link
+      ? `<br><a href="${f.link}" target="_blank">Официальный сайт</a>`
+      : "";
 
     const popup = `
       <img src="${img}" class="popup-img">
@@ -224,18 +274,31 @@ function render() {
       ${f.city}<br>
       <i>${f.type}</i><br>
       ${f.desc}
+      ${linkHTML}
     `;
 
     L.marker(f.coords)
       .addTo(markers)
       .bindPopup(popup);
   });
+
+  // Обновляем счётчик
+  countLabel.textContent = `Найдено: ${count}`;
+
+  // Центрирование на результате, если есть
+  if (lastCoords && searchText) {
+    map.setView(lastCoords, 8);
+  }
 }
 
+// Подключение событий
 typeFilter.onchange = render;
 regionFilter.onchange = render;
+nameSearch.oninput = render;
 
+// Первый рендер
 render();
+
 </script>
 
 </body>
